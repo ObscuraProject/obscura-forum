@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Prestimos Obscura Forum{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <a href="{{ url_for('index') }}">🌑 Prestimos Obscura</a>
+            </div>
+            <nav class="navbar-menu">
+                {% if session.user_id %}
+                    <span class="navbar-user">Welcome, {{ session.username }}</span>
+                    {% if session.role == 'admin' %}
+                        <a href="{{ url_for('admin_panel') }}" class="navbar-link">Admin Panel</a>
+                    {% endif %}
+                    <a href="{{ url_for('user_profile', user_id=session.user_id) }}" class="navbar-link">Profile</a>
+                    <a href="{{ url_for('logout') }}" class="navbar-link">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="navbar-link">Login</a>
+                    <a href="{{ url_for('register') }}" class="navbar-link">Register</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 Prestimos Obscura Forum. All rights reserved.</p>
+    </footer>
+</body>
+</html>

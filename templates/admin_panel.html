@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - Prestimos Obscura Forum{% endblock %}
+
+{% block content %}
+    <div class="admin-panel">
+        <h1>👑 Admin Panel</h1>
+
+        <div class="admin-section">
+            <h2>User Management</h2>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Current Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.role }}</td>
+                            <td>{% if user.is_active %}Active{% else %}Disabled{% endif %}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('update_user_role', user_id=user.id) }}" style="display:inline;">
+                                    <select name="role" required>
+                                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                        <option value="staff" {% if user.role == 'staff' %}selected{% endif %}>Staff</option>
+                                        <option value="verified_vendor" {% if user.role == 'verified_vendor' %}selected{% endif %}>Verified Vendor</option>
+                                        <option value="standard_vendor" {% if user.role == 'standard_vendor' %}selected{% endif %}>Standard Vendor</option>
+                                        <option value="verified_user" {% if user.role == 'verified_user' %}selected{% endif %}>Verified User</option>
+                                        <option value="standard_user" {% if user.role == 'standard_user' %}selected{% endif %}>Standard User</option>
+                                        <option value="verified_developer" {% if user.role == 'verified_developer' %}selected{% endif %}>Verified Developer</option>
+                                        <option value="standard_developer" {% if user.role == 'standard_developer' %}selected{% endif %}>Standard Developer</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-small">Update Role</button>
+                                </form>
+                                
+                                <form method="POST" action="{{ url_for('toggle_user_status', user_id=user.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-small">
+                                        {% if user.is_active %}Disable{% else %}Enable{% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="admin-section">
+            <h2>Recent Topics</h2>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Author</th>
+                        <th>Sub-Scura</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for topic in topics %}
+                        <tr>
+                            <td>{{ topic.id }}</td>
+                            <td><a href="{{ url_for('topic_detail', topic_id=topic.id) }}">{{ topic.title }}</a></td>
+                            <td>{{ topic.author_id }}</td>
+                            <td>{{ topic.subscura_id }}</td>
+                            <td>{{ topic.created_at }}</td>
+                            <td>
+                                <a href="{{ url_for('topic_detail', topic_id=topic.id) }}" class="btn btn-small">View</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

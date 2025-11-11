@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Prestimos Obscura Forum{% endblock %}
+
+{% block content %}
+    <div class="home-header">
+        <h1>Welcome to Prestimos Obscura</h1>
+        <p>The decentralized forum for knowledge sharing</p>
+        {% if session.user_id %}
+            <a href="{{ url_for('create_subscura') }}" class="btn btn-primary">Create New Sub-Scura</a>
+        {% endif %}
+    </div>
+
+    <div class="subscuras-grid">
+        {% if subscuras %}
+            {% for subscura in subscuras %}
+                <div class="subscura-card">
+                    <h2><a href="{{ url_for('subscura_detail', subscura_id=subscura.id) }}">s/{{ subscura.name }}</a></h2>
+                    <p class="subscura-description">{{ subscura.description or 'No description' }}</p>
+                    <p class="subscura-meta">
+                        Created by: <strong>{{ subscura.creator_id }}</strong> | 
+                        Members: <strong>{{ subscura.members_count }}</strong>
+                    </p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-state">No Sub-Scuras yet. Be the first to create one!</p>
+        {% endif %}
+    </div>
+{% endblock %}

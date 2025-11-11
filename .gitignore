@@ -1,0 +1,22 @@
+Ignore the Python virtual environment folder
+
+venv/
+
+Ignore the SQLite database file
+
+forum.db
+
+--- Standard additions (optional but recommended) ---
+
+Byte-compiled / optimized / DLL files
+
+pycache/
+*.pyc
+*.pyd
+*.so
+
+Editor/OS specific files
+
+.DS_Store
+.vscode/
+.idea/

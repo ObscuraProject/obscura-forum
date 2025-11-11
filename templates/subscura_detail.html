@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}s/{{ subscura.name }} - Prestimos Obscura Forum{% endblock %}
+
+{% block content %}
+    <div class="subscura-header">
+        <h1>s/{{ subscura.name }}</h1>
+        <p class="subscura-description">{{ subscura.description or 'No description' }}</p>
+        <p class="subscura-stats">Created: {{ subscura.created_at }} | Members: {{ subscura.members_count }}</p>
+        
+        {% if session.user_id %}
+            <a href="{{ url_for('create_topic', subscura_id=subscura.id) }}" class="btn btn-primary">Create New Topic</a>
+        {% endif %}
+    </div>
+
+    <div class="topics-container">
+        {% if topics %}
+            {% for topic in topics %}
+                <div class="topic-item">
+                    <div class="topic-header">
+                        <h2><a href="{{ url_for('topic_detail', topic_id=topic.id) }}">{{ topic.title }}</a></h2>
+                        {% if topic.is_pinned %}
+                            <span class="badge badge-pinned">📌 Pinned</span>
+                        {% endif %}
+                    </div>
+                    <p class="topic-author">
+                        by <strong>{{ topic.username }}</strong> 
+                        <span class="role-icon">{{ get_role_icon(topic.role) }}</span>
+                    </p>
+                    <p class="topic-meta">
+                        Posted: {{ topic.created_at }} | 
+                        Views: {{ topic.views }} | 
+                        Replies: {{ topic.reply_count }}
+                    </p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-state">No topics yet. Be the first to start a discussion!</p>
+        {% endif %}
+    </div>
+{% endblock %}
