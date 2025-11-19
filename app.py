@@ -16,7 +16,7 @@ app.secret_key = 'your-secret-key-change-this-in-production'
 DATABASE = 'forum.db'
 
 # ===== PROOF OF WORK CONSTANTS =====
-POW_DIFFICULTY = 8  # Number of leading zeros required in hash
+POW_DIFFICULTY = 6  # Number of leading zeros required in hash
 POW_EXPIRY = 3600  # Proof of work valid for 1 hour (in seconds)
 
 # ===== DATABASE FUNCTIONS =====
