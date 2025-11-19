@@ -1,17 +1,23 @@
 """
-Prestimos Obscura Forum - Main Flask Application - UPDATED WITH EDIT PROFILE
-A fully functional forum system with role-based access, sub-forums (Sub-Scuras), and no JavaScript dependency
+Obscura Forum NO-JS Script - Main Flask Application WITH PROOF OF WORK GATEWAY (FIXED + SOLVER)
+A fully functional forum system with role-based access, sub-forums (Sub-Scuras), no JavaScript, and PoW gateway
 """
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import sqlite3
 import os
+import hashlib
+import secrets
 
 app = Flask(__name__)
-app.secret_key = '2d17caa6c17b7e4bb1f970151bed49656702e57f213dbf8e0be79454c2f9749f'
+app.secret_key = 'your-secret-key-change-this-in-production'
 DATABASE = 'forum.db'
+
+# ===== PROOF OF WORK CONSTANTS =====
+POW_DIFFICULTY = 8  # Number of leading zeros required in hash
+POW_EXPIRY = 3600  # Proof of work valid for 1 hour (in seconds)
 
 # ===== DATABASE FUNCTIONS =====
 
@@ -38,6 +44,20 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_active BOOLEAN DEFAULT 1,
                 bio TEXT
+            )
+        ''')
+        
+        # Proof of Work table - tracks completed PoW challenges
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pow_challenges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                challenge_token TEXT UNIQUE NOT NULL,
+                difficulty INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                is_completed BOOLEAN DEFAULT 0,
+                ip_address TEXT,
+                verified_hash TEXT
             )
         ''')
         
@@ -100,6 +120,63 @@ def init_db():
         db.commit()
         db.close()
 
+# ===== PROOF OF WORK FUNCTIONS =====
+
+def generate_pow_challenge():
+    """Generate a new proof of work challenge token"""
+    return secrets.token_hex(16)
+
+def check_pow_hash(data, difficulty):
+    """Check if a hash meets the proof of work difficulty requirement"""
+    hash_obj = hashlib.sha256(data.encode())
+    hash_hex = hash_obj.hexdigest()
+    # Check if hash starts with required number of zeros
+    return hash_hex.startswith('0' * difficulty), hash_hex
+
+def verify_pow_solution(challenge_token, nonce, difficulty):
+    """Verify that a proof of work solution is valid"""
+    data = f"{challenge_token}:{nonce}"
+    is_valid, hash_result = check_pow_hash(data, difficulty)
+    return is_valid, hash_result
+
+def get_client_ip():
+    """Get client IP address"""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0]
+    return request.remote_addr
+
+def mark_pow_complete(challenge_token, verified_hash):
+    """Mark a proof of work challenge as completed"""
+    db = get_db()
+    db.execute('''
+        UPDATE pow_challenges 
+        SET is_completed = 1, completed_at = CURRENT_TIMESTAMP, verified_hash = ?
+        WHERE challenge_token = ?
+    ''', (verified_hash, challenge_token))
+    db.commit()
+    db.close()
+
+def has_valid_pow_token(challenge_token):
+    """Check if a user has a valid, non-expired proof of work token"""
+    db = get_db()
+    result = db.execute('''
+        SELECT * FROM pow_challenges 
+        WHERE challenge_token = ? AND is_completed = 1
+    ''', (challenge_token,)).fetchone()
+    
+    if not result:
+        db.close()
+        return False
+    
+    # Check if token has expired
+    completed_time = datetime.fromisoformat(result['completed_at'])
+    if (datetime.now() - completed_time).total_seconds() > POW_EXPIRY:
+        db.close()
+        return False
+    
+    db.close()
+    return True
+
 # ===== HELPER FUNCTIONS =====
 
 def get_user_by_username(username):
@@ -141,9 +218,113 @@ def get_role_icon(role):
     }
     return icons.get(role, '👤')
 
+# ===== PROOF OF WORK ROUTES =====
+
+@app.route('/pow', methods=['GET', 'POST'])
+def proof_of_work_gateway():
+    """Proof of work gateway - required to access forum - FIXED VERSION"""
+    
+    if request.method == 'POST':
+        challenge_token = request.form.get('challenge_token')
+        nonce = request.form.get('nonce', '')
+        
+        if not challenge_token or not nonce:
+            flash('Missing challenge token or nonce', 'error')
+            # Return to same challenge instead of generating new one
+            return render_template('pow_gateway.html', 
+                                  challenge_token=challenge_token if challenge_token else generate_pow_challenge(),
+                                  difficulty=POW_DIFFICULTY)
+        
+        # Verify the proof of work
+        is_valid, hash_result = verify_pow_solution(challenge_token, nonce, POW_DIFFICULTY)
+        
+        if not is_valid:
+            flash('Invalid proof of work. Please try again with the same challenge.', 'error')
+            # Keep the same challenge token on failure
+            return render_template('pow_gateway.html', 
+                                  challenge_token=challenge_token,
+                                  difficulty=POW_DIFFICULTY)
+        
+        # Mark the challenge as completed
+        mark_pow_complete(challenge_token, hash_result)
+        
+        # Store in session that user has completed PoW
+        session['pow_token'] = challenge_token
+        session['pow_verified'] = True
+        
+        flash('Proof of work verified! Welcome to Obscura Forum.', 'success')
+        return redirect(url_for('index'))
+    
+    # GET request - generate new challenge
+    challenge_token = generate_pow_challenge()
+    
+    db = get_db()
+    db.execute('''
+        INSERT INTO pow_challenges (challenge_token, difficulty, ip_address)
+        VALUES (?, ?, ?)
+    ''', (challenge_token, POW_DIFFICULTY, get_client_ip()))
+    db.commit()
+    db.close()
+    
+    return render_template('pow_gateway.html', 
+                          challenge_token=challenge_token,
+                          difficulty=POW_DIFFICULTY)
+
+@app.route('/pow/solve', methods=['POST'])
+def solve_pow_challenge():
+    """Server-side PoW solver - solves the challenge and returns nonce"""
+    challenge_token = request.form.get('challenge_token')
+    difficulty = int(request.form.get('difficulty', POW_DIFFICULTY))
+    
+    if not challenge_token:
+        flash('Missing challenge token', 'error')
+        return redirect(url_for('proof_of_work_gateway'))
+    
+    # Solve the proof of work challenge
+    nonce = 0
+    max_attempts = 10000000  # Limit to prevent infinite loop
+    
+    while nonce < max_attempts:
+        data = f"{challenge_token}:{nonce}"
+        hash_obj = hashlib.sha256(data.encode())
+        hash_hex = hash_obj.hexdigest()
+        
+        # Check if hash meets difficulty
+        if hash_hex.startswith('0' * difficulty):
+            # Found solution! Return to gateway with nonce pre-filled
+            flash(f'Solution found! Nonce: {nonce}', 'success')
+            return render_template('pow_gateway.html',
+                                 challenge_token=challenge_token,
+                                 difficulty=difficulty,
+                                 solved_nonce=nonce)
+        
+        nonce += 1
+    
+    # Failed to find solution
+    flash('Failed to find solution within reasonable time. Try again.', 'error')
+    return render_template('pow_gateway.html',
+                         challenge_token=challenge_token,
+                         difficulty=difficulty)
+
+def require_pow(f):
+    """Decorator to require proof of work before accessing a route"""
+    def decorated_function(*args, **kwargs):
+        # Check if user has completed PoW
+        pow_token = session.get('pow_token')
+        pow_verified = session.get('pow_verified', False)
+        
+        if not pow_verified or not has_valid_pow_token(pow_token):
+            return redirect(url_for('proof_of_work_gateway'))
+        
+        return f(*args, **kwargs)
+    
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
 # ===== AUTHENTICATION ROUTES =====
 
 @app.route('/register', methods=['GET', 'POST'])
+@require_pow
 def register():
     """Register a new user"""
     if request.method == 'POST':
@@ -172,6 +353,7 @@ def register():
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
+@require_pow
 def login():
     """Login user"""
     if request.method == 'POST':
@@ -199,11 +381,12 @@ def logout():
     """Logout user"""
     session.clear()
     flash('You have been logged out', 'success')
-    return redirect(url_for('index'))
+    return redirect(url_for('proof_of_work_gateway'))
 
 # ===== MAIN ROUTES =====
 
 @app.route('/')
+@require_pow
 def index():
     """Home page - list all sub-scuras"""
     db = get_db()
@@ -212,6 +395,7 @@ def index():
     return render_template('index.html', subscuras=subscuras)
 
 @app.route('/subscura/<int:subscura_id>')
+@require_pow
 def subscura_detail(subscura_id):
     """View a specific sub-scura"""
     db = get_db()
@@ -235,6 +419,7 @@ def subscura_detail(subscura_id):
     return render_template('subscura_detail.html', subscura=subscura, topics=topics, get_role_icon=get_role_icon)
 
 @app.route('/subscura/new', methods=['GET', 'POST'])
+@require_pow
 def create_subscura():
     """Create a new sub-scura"""
     if not is_authenticated():
@@ -270,6 +455,7 @@ def create_subscura():
     return render_template('create_subscura.html')
 
 @app.route('/topic/<int:topic_id>')
+@require_pow
 def topic_detail(topic_id):
     """View a specific topic with all replies"""
     db = get_db()
@@ -300,6 +486,7 @@ def topic_detail(topic_id):
     return render_template('topic_detail.html', topic=topic, posts=posts, get_role_icon=get_role_icon)
 
 @app.route('/topic/new/<int:subscura_id>', methods=['GET', 'POST'])
+@require_pow
 def create_topic(subscura_id):
     """Create a new topic"""
     if not is_authenticated():
@@ -335,6 +522,7 @@ def create_topic(subscura_id):
     return render_template('create_topic.html', subscura=subscura)
 
 @app.route('/post/<int:topic_id>', methods=['POST'])
+@require_pow
 def create_post(topic_id):
     """Create a reply to a topic"""
     if not is_authenticated():
@@ -361,6 +549,7 @@ def create_post(topic_id):
 # ===== ADMIN ROUTES =====
 
 @app.route('/admin')
+@require_pow
 def admin_panel():
     """Admin dashboard"""
     if not is_admin():
@@ -375,6 +564,7 @@ def admin_panel():
     return render_template('admin_panel.html', users=users, topics=topics, get_role_icon=get_role_icon)
 
 @app.route('/admin/user/<int:user_id>/role', methods=['POST'])
+@require_pow
 def update_user_role(user_id):
     """Update user role"""
     if not is_admin():
@@ -397,6 +587,7 @@ def update_user_role(user_id):
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/user/<int:user_id>/toggle', methods=['POST'])
+@require_pow
 def toggle_user_status(user_id):
     """Enable/disable user account"""
     if not is_admin():
@@ -415,6 +606,7 @@ def toggle_user_status(user_id):
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/post/<int:post_id>/delete', methods=['POST'])
+@require_pow
 def delete_post(post_id):
     """Delete a post"""
     if not is_admin():
@@ -437,6 +629,7 @@ def delete_post(post_id):
 # ===== USER PROFILE ROUTES =====
 
 @app.route('/user/<int:user_id>')
+@require_pow
 def user_profile(user_id):
     """View user profile"""
     db = get_db()
@@ -462,6 +655,7 @@ def user_profile(user_id):
                           get_role_icon=get_role_icon)
 
 @app.route('/user/<int:user_id>/edit', methods=['GET', 'POST'])
+@require_pow
 def edit_profile(user_id):
     """Edit user profile - only allow users to edit their own profile"""
     if not is_authenticated():
