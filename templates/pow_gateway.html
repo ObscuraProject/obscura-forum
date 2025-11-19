@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proof of Work Gateway - Obscura Forum</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .pow-container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 2rem 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .pow-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .pow-header h1 {
+            font-size: 2rem;
+            color: #d4af37;
+            margin-bottom: 0.5rem;
+        }
+
+        .pow-header p {
+            color: #aaa;
+            font-size: 1.1rem;
+        }
+
+        .pow-form {
+            background-color: #16213e;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid #404040;
+        }
+
+        .pow-info {
+            background-color: #0f3460;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid #d4af37;
+        }
+
+        .pow-info h3 {
+            color: #d4af37;
+            margin-bottom: 0.5rem;
+        }
+
+        .pow-info p {
+            color: #bbb;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .pow-status {
+            background-color: #1a1a2e;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            color: #aaa;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+
+        .pow-status strong {
+            color: #d4af37;
+        }
+
+        .pow-form-group {
+            margin-bottom: 1rem;
+        }
+
+        .pow-form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #eaeaea;
+            font-weight: bold;
+        }
+
+        .pow-form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #1a1a2e;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            color: #eaeaea;
+            font-size: 1rem;
+            font-family: monospace;
+        }
+
+        .pow-form-group input:focus {
+            outline: none;
+            border-color: #0f3460;
+            box-shadow: 0 0 5px rgba(15, 52, 96, 0.5);
+        }
+
+        .pow-form-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: #888;
+        }
+
+        .pow-submit {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #0f3460;
+            color: #d4af37;
+            border: 1px solid #d4af37;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            margin-bottom: 0.75rem;
+        }
+
+        .pow-submit:hover {
+            background-color: #d4af37;
+            color: #1a1a2e;
+        }
+
+        .pow-solver-section {
+            background-color: #1a1a2e;
+            padding: 1.5rem;
+            border-radius: 4px;
+            margin-top: 1.5rem;
+            border-left: 3px solid #d4af37;
+        }
+
+        .pow-solver-section h4 {
+            color: #d4af37;
+            margin-bottom: 1rem;
+        }
+
+        .pow-solver-section p {
+            color: #bbb;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .pow-instructions {
+            background-color: #1a1a2e;
+            padding: 1.5rem;
+            border-radius: 4px;
+            margin-top: 1.5rem;
+            border-left: 3px solid #404040;
+        }
+
+        .pow-instructions h4 {
+            color: #d4af37;
+            margin-bottom: 1rem;
+        }
+
+        .pow-instructions ol {
+            color: #bbb;
+            padding-left: 1.5rem;
+            line-height: 1.8;
+        }
+
+        .pow-instructions li {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .pow-hint {
+            background-color: #1a1a2e;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            border-left: 3px solid #d4af37;
+            color: #aaa;
+        }
+
+        .pow-hint strong {
+            color: #d4af37;
+        }
+
+        .solver-form {
+            margin-top: 1rem;
+        }
+
+        .btn-solver {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #d4af37;
+            color: #1a1a2e;
+            border: 1px solid #d4af37;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-solver:hover {
+            background-color: #c19b2e;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+        }
+
+        .alert-success {
+            background-color: rgba(50, 184, 198, 0.2);
+            border: 1px solid rgba(50, 184, 198, 0.5);
+            color: #32b8c6;
+        }
+
+        .alert-error {
+            background-color: rgba(192, 21, 47, 0.2);
+            border: 1px solid rgba(192, 21, 47, 0.5);
+            color: #ff5459;
+        }
+    </style>
+</head>
+<body>
+    <div class="pow-container">
+        <div class="pow-header">
+            <h1>🌑 Obscura Forum</h1>
+            <p>Proof of Work Gateway</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="pow-form">
+            <div class="pow-info">
+                <h3>⚙️ How It Works</h3>
+                <p>
+                    To access the forum, you must solve a computational proof of work challenge.
+                    This protects against spam and abuse by requiring minimal computational effort.
+                </p>
+            </div>
+
+            <div class="pow-status">
+                <strong>Challenge Token:</strong><br>
+                {{ challenge_token }}
+            </div>
+
+            <div class="pow-status">
+                <strong>Required Difficulty:</strong><br>
+                Find a nonce such that SHA256(token:nonce) starts with {{ difficulty }} zeros
+            </div>
+
+            <!-- Main submission form -->
+            <form method="POST" action="{{ url_for('proof_of_work_gateway') }}">
+                <input type="hidden" name="challenge_token" value="{{ challenge_token }}">
+                
+                <div class="pow-form-group">
+                    <label for="nonce">Solution (Nonce):</label>
+                    <input type="text" id="nonce" name="nonce" placeholder="e.g., 12345" {% if solved_nonce %}value="{{ solved_nonce }}"{% endif %}>
+                    <small>Enter the nonce value to complete the proof of work</small>
+                </div>
+
+                <button type="submit" class="pow-submit">Verify Proof of Work</button>
+            </form>
+
+            <!-- Integrated Solver Section -->
+            <div class="pow-solver-section">
+                <h4>🔧 Automatic Solver</h4>
+                <p>
+                    Click the button below to automatically solve this challenge on the server.
+                    This will take 1-2 minutes depending on the difficulty.
+                    Once solved, the nonce will appear in the field above.
+                </p>
+
+                <form method="POST" action="{{ url_for('solve_pow_challenge') }}" class="solver-form">
+                    <input type="hidden" name="challenge_token" value="{{ challenge_token }}">
+                    <input type="hidden" name="difficulty" value="{{ difficulty }}">
+                    <button type="submit" class="btn-solver">🚀 Solve Challenge Automatically</button>
+                </form>
+
+                <div class="pow-hint" style="margin-top: 1rem;">
+                    <strong>💡 Note:</strong> The solver runs on the server and may take 1-2 minutes.
+                    Your browser will wait until the solution is found.
+                </div>
+            </div>
+
+            <div class="pow-instructions">
+                <h4>📋 Manual Instructions:</h4>
+                <ol>
+                    <li>Copy the challenge token above</li>
+                    <li>Append a colon (:) followed by a number (nonce)</li>
+                    <li>Calculate SHA256 hash of the resulting string</li>
+                    <li>Check if hash starts with {{ difficulty }} zeros</li>
+                    <li>If not, try the next number and repeat</li>
+                    <li>When successful, submit the nonce</li>
+                </ol>
+            </div>
+
+            <div class="pow-hint">
+                <strong>💡 Command Line:</strong> You can also use the pow_solver.py script:
+                <div style="margin-top: 0.5rem; padding: 0.5rem; background-color: #0f1419; border-radius: 4px; font-family: monospace; font-size: 0.85rem;">
+                    python3 pow_solver.py "{{ challenge_token }}" {{ difficulty }}
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem; color: #888;">
+                <small>
+                    This gateway works without JavaScript.
+                    All computation happens server-side or via command-line tools.
+                </small>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
